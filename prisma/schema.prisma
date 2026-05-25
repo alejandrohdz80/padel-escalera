@@ -1,0 +1,182 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Side {
+  REVES
+  DRIVE
+}
+
+enum Role {
+  ADMIN
+  PLAYER
+}
+
+enum SessionMode {
+  FIXED_PAIRS
+  RANDOM_PAIRS
+}
+
+enum SessionStatus {
+  PENDING
+  ACTIVE
+  FINISHED
+}
+
+enum PenaltyType {
+  CAGUAMA
+  CUBETA
+  BOTELLA
+}
+
+enum PenaltyReason {
+  ULTIMO_EN_LLEGAR
+  DOBLE_FALTA
+  CERO_SEIS
+  REMONTAR_5_0_PERDER
+  ABANICADA_REMATE
+  BOLITA_DON_ROBER
+}
+
+model Player {
+  id        String   @id @default(cuid())
+  authId    String?  @unique
+  name      String
+  phone     String   @unique
+  birthday  DateTime
+  category  String
+  side      Side
+  role      Role     @default(PLAYER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions          SessionPlayer[]
+  penaltiesReceived Penalty[]         @relation("ReceivedBy")
+  penaltiesGiven    Penalty[]         @relation("GivenBy")
+  resultsSubmitted  Result[]          @relation("SubmittedBy")
+  p1Assignments     CourtAssignment[] @relation("P1")
+  p2Assignments     CourtAssignment[] @relation("P2")
+  p3Assignments     CourtAssignment[] @relation("P3")
+  p4Assignments     CourtAssignment[] @relation("P4")
+  sessionsCreated   Session[]
+  stats             PlayerStats?
+
+  @@map("players")
+}
+
+model PlayerStats {
+  id             String    @id @default(cuid())
+  playerId       String    @unique
+  totalPoints    Float     @default(0)
+  wins           Int       @default(0)
+  losses         Int       @default(0)
+  sessionsPlayed Int       @default(0)
+  lastPlayedAt   DateTime?
+  updatedAt      DateTime  @updatedAt
+
+  player Player @relation(fields: [playerId], references: [id])
+
+  @@map("player_stats")
+}
+
+model Session {
+  id          String        @id @default(cuid())
+  name        String
+  mode        SessionMode
+  numCourts   Int
+  status      SessionStatus @default(PENDING)
+  createdById String
+  createdAt   DateTime      @default(now())
+  endedAt     DateTime?
+
+  createdBy Player          @relation(fields: [createdById], references: [id])
+  players   SessionPlayer[]
+  rounds    Round[]
+  penalties Penalty[]
+
+  @@map("sessions")
+}
+
+model SessionPlayer {
+  id              String  @id @default(cuid())
+  sessionId       String
+  playerId        String
+  arrivedLate     Boolean @default(false)
+  pointsCommitted Boolean @default(false)
+
+  session Session @relation(fields: [sessionId], references: [id])
+  player  Player  @relation(fields: [playerId], references: [id])
+
+  @@unique([sessionId, playerId])
+  @@map("session_players")
+}
+
+model Round {
+  id          String   @id @default(cuid())
+  sessionId   String
+  roundNumber Int
+  createdAt   DateTime @default(now())
+
+  session     Session           @relation(fields: [sessionId], references: [id])
+  assignments CourtAssignment[]
+
+  @@unique([sessionId, roundNumber])
+  @@map("rounds")
+}
+
+model CourtAssignment {
+  id          String @id @default(cuid())
+  roundId     String
+  courtNumber Int
+
+  player1Id String
+  player2Id String
+  player3Id String
+  player4Id String
+
+  round   Round   @relation(fields: [roundId], references: [id])
+  player1 Player  @relation("P1", fields: [player1Id], references: [id])
+  player2 Player  @relation("P2", fields: [player2Id], references: [id])
+  player3 Player  @relation("P3", fields: [player3Id], references: [id])
+  player4 Player  @relation("P4", fields: [player4Id], references: [id])
+  result  Result?
+
+  @@unique([roundId, courtNumber])
+  @@map("court_assignments")
+}
+
+model Result {
+  id                String   @id @default(cuid())
+  courtAssignmentId String   @unique
+  team1Games        Int
+  team2Games        Int
+  winnerTeam        Int
+  submittedById     String
+  createdAt         DateTime @default(now())
+
+  courtAssignment CourtAssignment @relation(fields: [courtAssignmentId], references: [id])
+  submittedBy     Player          @relation("SubmittedBy", fields: [submittedById], references: [id])
+
+  @@map("results")
+}
+
+model Penalty {
+  id        String        @id @default(cuid())
+  sessionId String
+  playerId  String
+  givenById String
+  type      PenaltyType
+  reason    PenaltyReason
+  createdAt DateTime      @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id])
+  player  Player  @relation("ReceivedBy", fields: [playerId], references: [id])
+  givenBy Player  @relation("GivenBy", fields: [givenById], references: [id])
+
+  @@map("penalties")
+}
