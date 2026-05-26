@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/db/prisma'
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type {} from '@/generated/prisma'
 
 export async function POST(request: NextRequest) {
   try {
