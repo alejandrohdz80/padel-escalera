@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { prisma } from '@/lib/db/prisma'
 
 export async function POST(request: NextRequest) {
@@ -13,25 +13,26 @@ export async function POST(request: NextRequest) {
     // Usamos phone@padel.app como email ficticio para Supabase Auth
     const email = `${phone.replace(/\s/g, '')}@padel.app`
 
-    const supabase = await createClient()
+    // Usamos admin client para crear usuario auto-confirmado (sin verificación por email)
+    const supabaseAdmin = createSupabaseAdmin(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
 
-    // Crear usuario en Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
+      email_confirm: true,
     })
 
     if (authError || !authData.user) {
       const msg = authError?.message ?? 'user_null'
-      console.error('Supabase signUp failed:', msg, JSON.stringify(authData))
-      if (msg.includes('already registered') || msg.includes('already been registered')) {
+      console.error('Supabase createUser failed:', msg)
+      if (msg.includes('already registered') || msg.includes('already been registered') || msg.includes('already exists')) {
         return NextResponse.json({ error: 'Este teléfono ya está registrado' }, { status: 400 })
       }
-      if (!authData.user) {
-        // Email confirmation required — user already exists unconfirmed
-        return NextResponse.json({ error: 'Este teléfono ya está registrado. Contacta al admin.' }, { status: 400 })
-      }
-      return NextResponse.json({ error: msg }, { status: 400 })
+      return NextResponse.json({ error: 'Error al crear la cuenta' }, { status: 400 })
     }
 
     // Crear perfil en nuestra DB
