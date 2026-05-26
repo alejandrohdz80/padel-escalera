@@ -22,10 +22,16 @@ export async function POST(request: NextRequest) {
     })
 
     if (authError || !authData.user) {
-      if (authError?.message.includes('already registered')) {
+      const msg = authError?.message ?? 'user_null'
+      console.error('Supabase signUp failed:', msg, JSON.stringify(authData))
+      if (msg.includes('already registered') || msg.includes('already been registered')) {
         return NextResponse.json({ error: 'Este teléfono ya está registrado' }, { status: 400 })
       }
-      return NextResponse.json({ error: 'Error al crear la cuenta' }, { status: 400 })
+      if (!authData.user) {
+        // Email confirmation required — user already exists unconfirmed
+        return NextResponse.json({ error: 'Este teléfono ya está registrado. Contacta al admin.' }, { status: 400 })
+      }
+      return NextResponse.json({ error: msg }, { status: 400 })
     }
 
     // Crear perfil en nuestra DB
