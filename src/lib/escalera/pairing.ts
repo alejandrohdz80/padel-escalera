@@ -1,4 +1,4 @@
-import { SessionMode } from '@/generated/prisma'
+import { SessionMode } from '@/generated/prisma/client'
 
 export interface PlayerRef {
   id: string

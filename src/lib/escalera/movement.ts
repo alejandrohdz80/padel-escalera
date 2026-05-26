@@ -1,4 +1,4 @@
-import { SessionMode } from '@/generated/prisma'
+import { SessionMode } from '@/generated/prisma/client'
 import { PlayerRef, assignPairs } from './pairing'
 
 export interface CourtResult {
